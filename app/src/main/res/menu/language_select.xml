@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <group android:checkableBehavior="single">
+    <item
+        android:id="@+id/english"
+        android:title="English"/>
+
+    <item
+        android:id="@+id/german"
+        android:title="German"/>
+
+    <item
+        android:id="@+id/romanian"
+        android:checked="true"
+        android:title="Romanian"/>
+    <item
+        android:id="@+id/russian"
+        android:title="Russian"/>
+
+    <item
+        android:id="@+id/french"
+        android:title="French"/>
+    </group>
+
+    <item android:title="Other">
+        <menu>
+        </menu>
+    </item>
+
+
+</menu>
