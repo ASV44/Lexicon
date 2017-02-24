@@ -4,10 +4,13 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.widget.PopupMenu;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -23,6 +26,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -44,7 +48,9 @@ public class MainActivity extends AppCompatActivity
     private PopupMenu selectLanguage = null;
     private LexiconDataModel mDbHelper = new LexiconDataModel(this);
     private LexiconDataBase lexiconDB;
+    private Map<String,List<String[]>> lexicons = new HashMap<>();
     private Map<String,ArrayAdapter<String[]>> lexiconsAdapters = new HashMap<>();
+    private GestureDetector gestureDetector;
 
 
     @Override
@@ -113,9 +119,7 @@ public class MainActivity extends AppCompatActivity
         });
         uploadLexicon();
         updateLexiconList();
-
-
-
+        onSwipeListChange();
     }
 
     @Override
@@ -199,8 +203,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void updateLexiconList() {
+        ListView lexiconList = (ListView)findViewById(R.id.lexiconList);
         if(!lexiconsAdapters.containsKey(translateFrom)) {
-            //lexiconsAdapters.put(translateFrom,)
             adapter = new ArrayAdapter<String[]>(this, R.layout.lexicon_list_item, lexicon) {
                 @Override
                 public View getView(int position, View convertView, ViewGroup parent) {
@@ -219,10 +223,14 @@ public class MainActivity extends AppCompatActivity
 
                 }
             };
-            ListView lexiconList = (ListView)findViewById(R.id.lexiconList);
             lexiconList.setAdapter(adapter);
+            lexiconsAdapters.put(translateFrom,adapter);
         }
         else {
+            if(!lexiconsAdapters.get(translateFrom).equals(adapter)) {
+                adapter = lexiconsAdapters.get(translateFrom);
+                lexiconList.setAdapter(adapter);
+            }
             adapter.notifyDataSetChanged();
         }
     }
@@ -296,8 +304,72 @@ public class MainActivity extends AppCompatActivity
         Log.d("translateFrom",translateFrom);
         if(!translateFrom.equals(this.translateFrom)) {
             lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
+            changeCurrentLexicon(translateFrom);
         }
-        this.translateFrom = translateFrom; }
+        this.translateFrom = translateFrom;
+    }
+
+    public void changeCurrentLexicon(String translateFrom) {
+        Log.d("lexicons_keys","" + lexicons.keySet());
+        if(!lexicons.containsKey(translateFrom)) {
+            lexicon = lexiconDB.getTable(translateFrom);
+            if(lexicon == null) {
+                lexicon = new ArrayList<String[]>();
+
+            }
+            lexicons.put(translateFrom, lexicon);
+        }
+        else {
+            lexicon = lexicons.get(translateFrom);
+        }
+    }
+
+    public void onSwipeListChange() {
+        RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
+        GestureListener gestureListener =new GestureListener(new GestureListener.swipeMotion() {
+            @Override
+            public void onLeft() {
+                List<String> languages = lexiconDB.getDBlanguages();
+                int index = languages.indexOf(translateFrom) + 1;
+                if(index == languages.size()) { index = 0; }
+                translateFrom = languages.get(index);
+                lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
+                if(!lexicons.containsKey(translateFrom)) {
+                    lexicon = lexiconDB.getTable(translateFrom);
+                    lexicons.put(translateFrom,lexicon);
+                }
+                else {
+                    lexicon = lexicons.get(translateFrom);
+                }
+                updateLexiconList();
+            }
+
+            @Override
+            public void onRight() {
+                List<String> languages = lexiconDB.getDBlanguages();
+                int index = languages.indexOf(translateFrom) - 1;
+                if(index == -1) { index = languages.size() -1; }
+                translateFrom = languages.get(index);
+                lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
+                if(!lexicons.containsKey(translateFrom)) {
+                    lexicon = lexiconDB.getTable(translateFrom);
+                    lexicons.put(translateFrom,lexicon);
+                }
+                else {
+                    lexicon = lexicons.get(translateFrom);
+                }
+                updateLexiconList();
+            }
+        });
+        gestureDetector = new GestureDetector(MainActivity.this, gestureListener);
+        relativeLayout.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view,MotionEvent event) {
+                gestureDetector.onTouchEvent(event);
+                return true;
+            }
+        });
+    }
 
     public void setTranslateTo(String translateTo) { this.translateTo = translateTo; }
 
