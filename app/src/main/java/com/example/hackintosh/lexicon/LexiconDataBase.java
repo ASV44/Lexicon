@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
+import android.widget.ListView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -126,23 +127,25 @@ public class LexiconDataBase {
 
     public void getCurrentLanguages() {
         db = mDbHelper.getReadableDatabase();
-        Cursor  cursor = db.rawQuery("select * from currentLanguage",null);
-        MainActivity mainActivity = (MainActivity) context;
-        while(cursor.moveToNext()) {
-            mainActivity.setTranslateTo(cursor.getString(
-                    cursor.getColumnIndexOrThrow("languageTo")));
-            mainActivity.setTranslateFrom(cursor.getString(
-                    cursor.getColumnIndexOrThrow("languageFrom")));
-            mainActivity.setTranslateTo_id(cursor.getString(
-                    cursor.getColumnIndexOrThrow("languageTo_id")));
+        if(checkIfExist(LexiconDataModel.LexiconCurrentLanguage.TABLE_NAME)) {
+            Cursor cursor = db.rawQuery("select * from currentLanguage", null);
+            MainActivity mainActivity = (MainActivity) context;
+            while (cursor.moveToNext()) {
+                mainActivity.setTranslateTo(cursor.getString(
+                        cursor.getColumnIndexOrThrow("languageTo")));
+                mainActivity.setTranslateFrom(cursor.getString(
+                        cursor.getColumnIndexOrThrow("languageFrom")));
+                mainActivity.setTranslateTo_id(cursor.getString(
+                        cursor.getColumnIndexOrThrow("languageTo_id")));
+            }
+            cursor.close();
         }
-        cursor.close();
     }
 
     public void showTable(String tableName, String tableColumn1, String tableColumn2) {
         if(checkIfExist(tableName)) {
             Cursor cursor = db.rawQuery("select * from " + tableName, null);
-
+            Log.d("Show table","table exist");
             List<String[]> items = new ArrayList<String[]>();
             while (cursor.moveToNext()) {
                 String[] item = new String[2];
@@ -163,6 +166,31 @@ public class LexiconDataBase {
         else {
             Log.d("Show Table", "table doesn't exit");
         }
+    }
+
+    public List<String> getDBlanguages() {
+        List<String> languages = new ArrayList<String>();
+        Cursor cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null);
+
+        if (cursor.moveToFirst()) {
+            while ( !cursor.isAfterLast() ) {
+                languages.add(cursor.getString(0));
+                cursor.moveToNext();
+            }
+        }
+        List<String> lang = new ArrayList<String>();
+        for(String language: languages) {
+            //Log.d("DataBase Languages", "" + language);
+            if(language.length() == 2) {
+                lang.add(language);
+            }
+        }
+        languages.clear();
+        languages = lang;
+        for(String lang2: languages) {
+            Log.d("DataBase Languages", "" + lang2);
+        }
+        return languages;
     }
 
 //    db = mDbHelper.getReadableDatabase();
