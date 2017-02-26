@@ -51,6 +51,12 @@ public class LexiconDataBase {
         return  newRowId;
     }
 
+    public void deleteElement(String tableName, String message) {
+        String[] delete_elements = new String[] {message};
+        db.delete(tableName, LexiconDataModel.LexiconTable.MESSAGE + " LIKE ?", delete_elements);
+
+    }
+
     public List<String[]> getTable(String tableName) {
         if(checkIfExist(tableName)) {
             Cursor cursor = db.rawQuery("select * from " + tableName, null);
@@ -72,6 +78,12 @@ public class LexiconDataBase {
         }
 
         return null;
+    }
+
+    public void deleteTable(String tableName) {
+        String SQL_DELETE_ENTRIES =
+                "DROP TABLE IF EXISTS " + tableName;
+        db.execSQL(SQL_DELETE_ENTRIES);
     }
 
     public boolean checkIfExist(String tableName) {
