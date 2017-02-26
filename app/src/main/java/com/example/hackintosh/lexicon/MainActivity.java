@@ -1,10 +1,20 @@
 package com.example.hackintosh.lexicon;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.TaskStackBuilder;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.GestureDetectorCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.PopupMenu;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -22,9 +32,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.AbsListView;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -33,6 +46,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -50,8 +64,14 @@ public class MainActivity extends AppCompatActivity
     private LexiconDataBase lexiconDB;
     private Map<String,List<String[]>> lexicons = new HashMap<>();
     private Map<String,ArrayAdapter<String[]>> lexiconsAdapters = new HashMap<>();
-    private GestureDetector gestureDetector;
-
+    private GestureDetector listGestureDetector;
+    private GestureDetector layoutGestureDetector;
+    private NotificationCompat.Builder mBuilder;
+    private Intent notificationIntent;
+    private NotificationLexicon notificationLexicon;
+    private int time = 0;
+    private BroadcastReceiver receiver;
+    private PopupMenu editItem = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +108,20 @@ public class MainActivity extends AppCompatActivity
               lexiconList.smoothScrollToPosition(0);
             }
           });
+        lexiconList.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Log.d("OnItemLongClick","detected at position" + i);
+                showEditItem(view, i);
+                return true;
+            }
+        });
+        lexiconList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Log.d("Item onClick","position " + i);
+            }
+        });
 
         editText = (EditText) findViewById(R.id.edit_message);
         editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -120,6 +154,19 @@ public class MainActivity extends AppCompatActivity
         uploadLexicon();
         updateLexiconList();
         onSwipeListChange();
+        //setNotificationBuilder();
+        startAppService();
+
+        receiver  = new BroadcastReceiver(){
+
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                time = intent.getExtras().getInt("time");
+                updateAppService();
+            }
+        };
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter("TIME"));
     }
 
     @Override
@@ -187,11 +234,22 @@ public class MainActivity extends AppCompatActivity
         super.onDestroy();
     }
 
+    public void uploadLexicon() {
+        Log.d("translate_FROM",translateFrom);
+        if(!translateFrom.equals("NONE")) {
+            lexicon = lexiconDB.getTable(translateFrom);
+            lexicons.put(translateFrom,lexicon);
+        }
+        if(lexicon == null) {
+            lexicon = new ArrayList<String[]>();
+        }
+    }
+
     public void translate_text() {
         message = editText.getText().toString();
         Log.d("Message", "" + message);
         Log.d("Translate To",translateTo);
-        if(!message.equals("")) {
+        if(!message.equals("") && message.trim().length() > 0) {
             translate.translate(message, translateTo);
         }
         editText.setText("");
@@ -199,6 +257,12 @@ public class MainActivity extends AppCompatActivity
 
     public void updateLexicon(String text, String translation) {
         lexicon.add(0,new String[] {text, translation});
+        if(notificationIntent != null) {
+            stopService(notificationIntent);
+        }
+        else {
+            startAppService();
+        }
         updateLexiconList();
     }
 
@@ -239,7 +303,7 @@ public class MainActivity extends AppCompatActivity
         if(selectLanguage == null) {
             selectLanguage = new PopupMenu(this, v);
             selectLanguage.inflate(R.menu.language_select);
-            selectLanguage.getMenu().getItem(Integer.parseInt(translateTo_id)).setChecked(true);
+            //selectLanguage.getMenu().getItem(Integer.parseInt(translateTo_id)).setChecked(true);
             selectLanguage
                     .setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
 
@@ -283,21 +347,9 @@ public class MainActivity extends AppCompatActivity
                         }
                     });
         }
-
+        selectLanguage.getMenu().getItem(Integer.parseInt(translateTo_id)).setChecked(true);
         selectLanguage.show();
     }
-
-    public void uploadLexicon() {
-        Log.d("translate_FROM",translateFrom);
-        if(!translateFrom.equals("NONE")) {
-            lexicon = lexiconDB.getTable(translateFrom);
-        }
-        if(lexicon == null) {
-            lexicon = new ArrayList<String[]>();
-        }
-    }
-
-    public LexiconDataBase getLexiconDB() { return lexiconDB; }
 
     public void setTranslateFrom(String translateFrom) {
         Log.d("translateFromMAIN",this.translateFrom);
@@ -311,6 +363,9 @@ public class MainActivity extends AppCompatActivity
 
     public void changeCurrentLexicon(String translateFrom) {
         Log.d("lexicons_keys","" + lexicons.keySet());
+        if(!lexicons.containsKey(this.translateFrom)) {
+            lexicons.put(this.translateFrom,lexicon);
+        }
         if(!lexicons.containsKey(translateFrom)) {
             lexicon = lexiconDB.getTable(translateFrom);
             if(lexicon == null) {
@@ -326,52 +381,150 @@ public class MainActivity extends AppCompatActivity
 
     public void onSwipeListChange() {
         RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.content_main);
-        GestureListener gestureListener =new GestureListener(new GestureListener.swipeMotion() {
-            @Override
-            public void onLeft() {
-                List<String> languages = lexiconDB.getDBlanguages();
-                int index = languages.indexOf(translateFrom) + 1;
-                if(index == languages.size()) { index = 0; }
-                translateFrom = languages.get(index);
-                lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
-                if(!lexicons.containsKey(translateFrom)) {
-                    lexicon = lexiconDB.getTable(translateFrom);
-                    lexicons.put(translateFrom,lexicon);
-                }
-                else {
-                    lexicon = lexicons.get(translateFrom);
-                }
-                updateLexiconList();
-            }
-
-            @Override
-            public void onRight() {
-                List<String> languages = lexiconDB.getDBlanguages();
-                int index = languages.indexOf(translateFrom) - 1;
-                if(index == -1) { index = languages.size() -1; }
-                translateFrom = languages.get(index);
-                lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
-                if(!lexicons.containsKey(translateFrom)) {
-                    lexicon = lexiconDB.getTable(translateFrom);
-                    lexicons.put(translateFrom,lexicon);
-                }
-                else {
-                    lexicon = lexicons.get(translateFrom);
-                }
-                updateLexiconList();
-            }
-        });
-        gestureDetector = new GestureDetector(MainActivity.this, gestureListener);
-        relativeLayout.setOnTouchListener(new View.OnTouchListener() {
+        ListView lexiconList = (ListView) findViewById(R.id.lexiconList);
+        listGestureDetector = gestureDetector();
+        layoutGestureDetector = gestureDetector();
+        lexiconList.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view,MotionEvent event) {
-                gestureDetector.onTouchEvent(event);
+                listGestureDetector.onTouchEvent(event);
+                return false;
+            }
+        });
+        relativeLayout.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                layoutGestureDetector.onTouchEvent(motionEvent);
                 return true;
             }
         });
     }
 
-    public void setTranslateTo(String translateTo) { this.translateTo = translateTo; }
+    public GestureDetector gestureDetector() {
+        GestureDetector gestureDetector;
+        GestureListener gestureListener =new GestureListener(new GestureListener.swipeMotion() {
+            @Override
+            public void onLeft() {
+                moveLeft();
+            }
 
-    public void setTranslateTo_id(String translateTo_id) { this.translateTo_id = translateTo_id; }
+            @Override
+            public void onRight() {
+                moveRight();
+            }
+        });
+        gestureDetector = new GestureDetector(MainActivity.this, gestureListener);
+
+        return gestureDetector;
+    }
+
+    public void moveLeft() {
+        List<String> languages = lexiconDB.getDBlanguages();
+        int index = languages.indexOf(translateFrom) + 1;
+        if(index == languages.size()) { index = 0; }
+        translateFrom = languages.get(index);
+        lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
+        if(!lexicons.containsKey(translateFrom)) {
+            lexicon = lexiconDB.getTable(translateFrom);
+            lexicons.put(translateFrom,lexicon);
+        }
+        else {
+            lexicon = lexicons.get(translateFrom);
+        }
+        updateLexiconList();
+        stopService(notificationIntent);
+        languages.clear();
+    }
+
+    public void moveRight() {
+        List<String> languages = lexiconDB.getDBlanguages();
+        int index = languages.indexOf(translateFrom) - 1;
+        if(index == -1) { index = languages.size() -1; }
+        translateFrom = languages.get(index);
+        lexiconDB.setCurrentLanguage(translateFrom,"0",translateTo,translateTo_id);
+        if(!lexicons.containsKey(translateFrom)) {
+            lexicon = lexiconDB.getTable(translateFrom);
+            lexicons.put(translateFrom,lexicon);
+        }
+        else {
+            lexicon = lexicons.get(translateFrom);
+        }
+        updateLexiconList();
+        stopService(notificationIntent);
+        languages.clear();
+    }
+
+    public void startAppService() {
+        if(lexicon != null && lexicon.size() != 0) {
+            notificationIntent = new Intent(this, AppService.class);
+            notificationLexicon = new NotificationLexicon(lexicon, 0);
+            notificationIntent.putExtra("lexicon", notificationLexicon);
+            startService(notificationIntent);
+        }
+    }
+
+    public void updateAppService() {
+        notificationLexicon.setTime(time);
+        notificationLexicon.setLexicon(lexicon);
+        notificationIntent.putExtra("lexicon",notificationLexicon);
+        startService(notificationIntent);
+    }
+
+    public void showEditItem(final View view, final int i) {
+        if(editItem == null) {
+            editItem = new PopupMenu(this,view);
+            editItem.inflate(R.menu.list_edit);
+        }
+        editItem.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                switch (item.getItemId()) {
+                    case R.id.edit_item:
+                        editText.setText(getListItemText(view,0));
+                        lexiconDB.deleteElement(translateFrom,getListItemText(view,0));
+                        lexicon.remove(i);
+                        updateLexiconList();
+                        stopService(notificationIntent);
+                        return true;
+                    case R.id.delete:
+                        lexiconDB.deleteElement(translateFrom,getListItemText(view,0));
+                        Log.d("Delete index","" + i);
+                        lexicon.remove(i);
+                        updateLexiconList();
+                        if(lexicon.size() == 0) {
+                            deleteLexicon();
+                        }
+                        stopService(notificationIntent);
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        });
+        editItem.show();
+    }
+
+    public void deleteLexicon() {
+        String previous_translateFrom = translateFrom;
+        lexicon.clear();
+        lexicons.remove(translateFrom);
+        moveLeft();
+        lexiconDB.deleteTable(previous_translateFrom);
+    }
+
+    public String getListItemText(View view, int index) {
+        return ((TextView) ((LinearLayout) view).getChildAt(index)).getText().toString();
+    }
+
+    public LexiconDataBase getLexiconDB() { return lexiconDB; }
+
+    public void setTranslateTo(String translateTo) {
+        Log.d("TranslateTo","" + translateTo);
+        this.translateTo = translateTo; }
+
+    public void setTranslateTo_id(String translateTo_id) {
+        Log.d("TranslateTo_id","" + translateTo_id);
+        this.translateTo_id = translateTo_id; }
+
+    public void setTime(int time) { this.time = time; }
 }
