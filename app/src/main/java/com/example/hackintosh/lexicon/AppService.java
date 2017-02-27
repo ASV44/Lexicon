@@ -6,9 +6,11 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
+import android.os.Vibrator;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
@@ -63,15 +65,19 @@ public class AppService extends Service {
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         Log.d("Service", "TASK REMOVED");
+        sendBroadcast(time);
+        stopSelf();
 
-        PendingIntent service = PendingIntent.getService(
-                getApplicationContext(),
-                0,
-                new Intent(getApplicationContext(), AppService.class),
-                0);
+//        PendingIntent service = PendingIntent.getService(
+//                getApplicationContext(),
+//                0,
+//                new Intent(getApplicationContext(), AppService.class),
+//                0);
+//
+//        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+//        alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
 
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
+
 
         super.onTaskRemoved(rootIntent);
     }
@@ -92,10 +98,14 @@ public class AppService extends Service {
         String translation = lexicon.get(index)[1];
         ID++;
         mBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.drawable.lexicon)
                 .setContentTitle("Improve your LexIcon")
                 .setContentText(message + "\t" + translation)
                 .setAutoCancel(true);
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            mBuilder.setSmallIcon(R.drawable.icon);
+        } else {
+            mBuilder.setSmallIcon(R.drawable.lexicon);
+        }
         Intent resultIntent = new Intent(this, MainActivity.class);
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         stackBuilder.addParentStack(MainActivity.class);
@@ -128,6 +138,8 @@ public class AppService extends Service {
                 Log.d("Time","" + time);
                 setNotificationBuilder();
                 setNotificationTime();
+                Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+                v.vibrate(500);
 //                stopSelf();
             }
         }.start();

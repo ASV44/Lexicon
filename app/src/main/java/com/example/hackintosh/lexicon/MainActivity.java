@@ -151,6 +151,7 @@ public class MainActivity extends AppCompatActivity
                 return true;
             }
         });
+        time = lexiconDB.getNotificationTime();
         uploadLexicon();
         updateLexiconList();
         onSwipeListChange();
@@ -162,6 +163,7 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onReceive(Context context, Intent intent) {
                 time = intent.getExtras().getInt("time");
+                lexiconDB.setNotificationTIme(time);
                 updateAppService();
             }
         };
@@ -457,7 +459,7 @@ public class MainActivity extends AppCompatActivity
     public void startAppService() {
         if(lexicon != null && lexicon.size() != 0) {
             notificationIntent = new Intent(this, AppService.class);
-            notificationLexicon = new NotificationLexicon(lexicon, 0);
+            notificationLexicon = new NotificationLexicon(lexicon, time);
             notificationIntent.putExtra("lexicon", notificationLexicon);
             startService(notificationIntent);
         }

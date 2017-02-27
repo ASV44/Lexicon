@@ -26,6 +26,11 @@ public class LexiconDataModel extends SQLiteOpenHelper{
         public static final String LANGUAGE_TO_ID = "languageTo_id";
     }
 
+    public static  class NotificationTime implements BaseColumns {
+        public static final String TABLE_NAME = "notificationTime";
+        public static final String TIME = "time";
+    }
+
     private String LEXICON_TABLE;
 
     private static final String CURRENT_LANGUAGE_TABLE =
@@ -73,5 +78,11 @@ public class LexiconDataModel extends SQLiteOpenHelper{
         db.execSQL(SQL_DELETE_ENTRIES);
     }
 
+    public void addNewTimeTable(SQLiteDatabase db) {
+        String TIME_TABLE = "CREATE TABLE " + NotificationTime.TABLE_NAME + " (" +
+                NotificationTime._ID + " INTEGER PRIMARY KEY," +
+                NotificationTime.TIME + " TEXT)";
+        db.execSQL(TIME_TABLE);
+    }
 }
 

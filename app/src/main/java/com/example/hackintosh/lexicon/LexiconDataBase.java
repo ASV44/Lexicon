@@ -205,6 +205,46 @@ public class LexiconDataBase {
         return languages;
     }
 
+    public void setNotificationTIme(int time) {
+        ContentValues values = new ContentValues();
+        values.put(LexiconDataModel.NotificationTime.TIME, time);
+
+        if (!checkIfExist(LexiconDataModel.NotificationTime.TABLE_NAME)) {
+            db = mDbHelper.getWritableDatabase();
+            mDbHelper.addNewTimeTable(db);
+            long newRowId = db.insert(LexiconDataModel.NotificationTime.TABLE_NAME, null, values);
+        } else {
+            db = mDbHelper.getReadableDatabase();
+            String selection = LexiconDataModel.NotificationTime._ID + " LIKE ?";
+            String[] selectionArgs = {"1"};
+
+            int count = db.update(
+                    "notificationTime",
+                    values,
+                    selection,
+                    selectionArgs);
+        }
+    }
+
+    public int getNotificationTime() {
+        String tableName = LexiconDataModel.NotificationTime.TABLE_NAME;
+        if (checkIfExist(tableName)) {
+            Cursor cursor = db.rawQuery("select * from " + tableName, null);
+            Log.d("Show table", "table exist");
+            List<Integer> items = new ArrayList<Integer>();
+            while (cursor.moveToNext()) {
+                String item = cursor.getString(cursor.getColumnIndexOrThrow(LexiconDataModel.NotificationTime.TIME));
+                items.add(0, Integer.parseInt(item));
+            }
+            cursor.close();
+            return items.get(0);
+
+        } else {
+            Log.d("Show Table", "table doesn't exit");
+            return 0;
+        }
+    }
+
 //    db = mDbHelper.getReadableDatabase();
 //
 //    // Define a projection that specifies which columns from the database
