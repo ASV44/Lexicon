@@ -16,10 +16,12 @@ public class NotificationLexicon implements Serializable {
 
     private List<String[]> lexicon;
     private int time = 0;
+    private String languageFrom;
 
-    public NotificationLexicon(List<String[]> lexicon, int time) {
+    public NotificationLexicon(List<String[]> lexicon, int time, String languageFrom) {
         this.lexicon = lexicon;
         this.time = time;
+        this.languageFrom = languageFrom;
     }
 
     public List<String[]> getLexicon() { return this.lexicon; }
@@ -30,4 +32,8 @@ public class NotificationLexicon implements Serializable {
     public int getTime() { return this.time; }
 
     public void setTime(int time) { this.time = time; }
+
+    public String getLanguageFrom() { return this.languageFrom; }
+
+    public void setLanguageFrom(String languageFrom) { this.languageFrom = languageFrom; }
 }

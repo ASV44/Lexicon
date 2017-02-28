@@ -120,6 +120,10 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Log.d("Item onClick","position " + i);
+                Intent intent = new Intent(MainActivity.this,LexiconItem.class);
+                NotificationLexicon notificationLexicon = new NotificationLexicon(lexicon, i, translateFrom);
+                intent.putExtra("message",notificationLexicon);
+                startActivity(intent);
             }
         });
 
@@ -459,7 +463,7 @@ public class MainActivity extends AppCompatActivity
     public void startAppService() {
         if(lexicon != null && lexicon.size() != 0) {
             notificationIntent = new Intent(this, AppService.class);
-            notificationLexicon = new NotificationLexicon(lexicon, time);
+            notificationLexicon = new NotificationLexicon(lexicon, time, null);
             notificationIntent.putExtra("lexicon", notificationLexicon);
             startService(notificationIntent);
         }

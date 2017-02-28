@@ -16,4 +16,7 @@ public interface RetrofitResponse {
 
     @GET("api/v1.5/tr.json/detect")
     Call<GetLanguage> getLanguage(@Query("key") String key, @Query("text") String text);
+
+    @GET("api/")
+    Call<ImageDataModel> getImage(@Query("key") String key, @Query("q") String imageRequest, @Query("lang") String language);
 }
