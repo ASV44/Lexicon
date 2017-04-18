@@ -88,7 +88,14 @@ public class LexiconItem extends AppCompatActivity {
         int id;
         String viewName = "image";
         ImageView imageView;
-        for(int i = 0; i < 3; i ++) {
+        int iteration;
+        if(imageData.size() < 3) {
+            iteration = imageData.size();
+        }
+        else {
+            iteration = 3;
+        }
+        for(int i = 0; i < iteration; i ++) {
             id = getResources().getIdentifier(viewName + String.valueOf(i + 1), "id", getPackageName());
             imageView = (ImageView) findViewById(id);
             Picasso.with(getApplicationContext()).load(imageData.get(i).getWebformatURL()).into(imageView);

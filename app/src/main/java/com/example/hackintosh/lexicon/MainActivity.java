@@ -1,5 +1,6 @@
 package com.example.hackintosh.lexicon;
 
+import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -155,19 +156,26 @@ public class MainActivity extends AppCompatActivity
                 return true;
             }
         });
-        time = lexiconDB.getNotificationTime();
+        //time = lexiconDB.getNotificationTime();
         uploadLexicon();
         updateLexiconList();
         onSwipeListChange();
         //setNotificationBuilder();
-        startAppService();
+        if(!isMyServiceRunning(AppService.class)) {
+            startAppService();
+        }
+        else {
+            Log.d("Service","running");
+            restartService();
+        }
 
         receiver  = new BroadcastReceiver(){
 
             @Override
             public void onReceive(Context context, Intent intent) {
-                time = intent.getExtras().getInt("time");
-                lexiconDB.setNotificationTIme(time);
+                Log.d("onReceive","Works");
+//                time = intent.getExtras().getInt("time");
+//                lexiconDB.setNotificationTIme(time);
                 updateAppService();
             }
         };
@@ -463,17 +471,33 @@ public class MainActivity extends AppCompatActivity
     public void startAppService() {
         if(lexicon != null && lexicon.size() != 0) {
             notificationIntent = new Intent(this, AppService.class);
-            notificationLexicon = new NotificationLexicon(lexicon, time, null);
+            notificationLexicon = new NotificationLexicon(lexicon, time, translateFrom);
             notificationIntent.putExtra("lexicon", notificationLexicon);
             startService(notificationIntent);
         }
     }
 
     public void updateAppService() {
+        if(notificationIntent == null && notificationLexicon == null) {
+            notificationIntent = new Intent(this, AppService.class);
+            notificationLexicon = new NotificationLexicon(lexicon, time, translateFrom);
+        }
         notificationLexicon.setTime(time);
         notificationLexicon.setLexicon(lexicon);
         notificationIntent.putExtra("lexicon",notificationLexicon);
         startService(notificationIntent);
+    }
+
+    public void restartService() {
+        notificationIntent = new Intent(this, AppService.class);
+        notificationLexicon = new NotificationLexicon(lexicon, time, translateFrom);
+        notificationIntent.putExtra("lexicon", notificationLexicon);
+        stopService(notificationIntent);
+        if(!isMyServiceRunning(AppService.class)) {
+            Log.d("RestartService","service_stop");
+            //startService(notificationIntent);
+        }
+
     }
 
     public void showEditItem(final View view, final int i) {
@@ -518,6 +542,16 @@ public class MainActivity extends AppCompatActivity
         lexiconDB.deleteTable(previous_translateFrom);
     }
 
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String getListItemText(View view, int index) {
         return ((TextView) ((LinearLayout) view).getChildAt(index)).getText().toString();
     }
@@ -533,4 +567,6 @@ public class MainActivity extends AppCompatActivity
         this.translateTo_id = translateTo_id; }
 
     public void setTime(int time) { this.time = time; }
+
+    public String getTranslateFrom() { return this.translateFrom; }
 }

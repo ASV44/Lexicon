@@ -52,9 +52,42 @@ public class Translate {
             public void onResponse(Call<DataModel> call, retrofit2.Response<DataModel> response) {
                 String translation = response.body().getText().get(0);
                 Log.v("Translation",translation);
-                translated = translation;
-                mainActivity.getLexiconDB().addElement(translateFrom, text, translated);
-                mainActivity.updateLexicon(text,translated);
+                if(text.equals(translation)) {
+                    translate_specificLanguage(text,language);
+                }
+                else {
+                    translated = translation;
+                    mainActivity.getLexiconDB().addElement(translateFrom, text, translated);
+                    mainActivity.updateLexicon(text, translated);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<DataModel> call, Throwable t) {
+                Toast.makeText(context, "An error occurred during networking", Toast.LENGTH_SHORT).show();
+                Log.e("error","" + t);
+            }
+        });
+    }
+
+    public void translate_specificLanguage(final String text, final String language) {
+        String specific_language = mainActivity.getTranslateFrom();
+        translateFrom = specific_language;
+        specific_language = specific_language + "-" + language;
+        retrofitResponse.getTranslation(key,specific_language,text).enqueue(new Callback<DataModel>() {
+            @Override
+            public void onResponse(Call<DataModel> call, retrofit2.Response<DataModel> response) {
+                String translation = response.body().getText().get(0);
+                Log.v("Translation",translation);
+                if(!text.equals(translation)) {
+                    translated = translation;
+                    mainActivity.getLexiconDB().addElement(translateFrom, text, translated);
+                    mainActivity.updateLexicon(text,translated);
+                }
+                else {
+                    Toast.makeText(context, "Text can't be translated\nCheck word or select another language", Toast.LENGTH_SHORT).show();
+                }
+
             }
 
             @Override

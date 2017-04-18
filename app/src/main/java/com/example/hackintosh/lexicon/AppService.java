@@ -32,6 +32,9 @@ public class AppService extends Service {
     private List<String[]> lexicon;
     private int time;
     private Random random = new Random();
+    private LexiconDataBase lexiconDB;
+    private String translateFrom;
+    private Intent notificationIntent;
 
     @Override
     public void onCreate() {
@@ -42,18 +45,23 @@ public class AppService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.d("Service","start");
+        notificationIntent = intent;
+        lexiconDB = new LexiconDataBase(getApplicationContext());
         getIntentExtras(intent);
         setNotificationTime();
-        return super.onStartCommand(intent, flags, startId);
+        //return super.onStartCommand(intent, flags, startId);
+        return START_REDELIVER_INTENT;
     }
 
     @Override
     public void onDestroy() {
         // STOP YOUR TASKS
         Log.d("Service","Stop and Destroy");
-        sendBroadcast(time);
+        lexiconDB.setNotificationTIme(time);
+        //sendBroadcast(time);
         timer.cancel();
         stopSelf();
+        restartService();
         //super.onDestroy();
     }
     
@@ -65,7 +73,8 @@ public class AppService extends Service {
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         Log.d("Service", "TASK REMOVED");
-        sendBroadcast(time);
+        lexiconDB.setNotificationTIme(time);
+        //sendBroadcast(time);
         stopSelf();
 
 //        PendingIntent service = PendingIntent.getService(
@@ -83,11 +92,14 @@ public class AppService extends Service {
     }
 
     public void getIntentExtras(Intent intent) {
-        if(intent.getExtras().getSerializable("lexicon") != null) {
+        if(intent != null) {
             lexicon = ((NotificationLexicon) intent.getExtras().getSerializable("lexicon")).getLexicon();
-            time = ((NotificationLexicon) intent.getExtras().getSerializable("lexicon")).getTime();
+            translateFrom = ((NotificationLexicon) intent.getExtras().getSerializable("lexicon")).getLanguageFrom();
+            //time = lexiconDB.getNotificationTime();
+            time = 10000;
+            //time = ((NotificationLexicon) intent.getExtras().getSerializable("lexicon")).getTime();
             if(time <= 0) { time = 10800000 + random.nextInt(10800001); }
-            Log.d("Time","" + time);
+            Log.d("Service_Time","" + time);
         }
     }
 
@@ -98,15 +110,17 @@ public class AppService extends Service {
         String translation = lexicon.get(index)[1];
         ID++;
         mBuilder = new NotificationCompat.Builder(this)
-                .setContentTitle("Improve your LexIcon")
-                .setContentText(message + "\t" + translation)
+                .setContentTitle(message + " \t " + translation)
+                .setContentText("Improve your LexIcon")
                 .setAutoCancel(true);
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             mBuilder.setSmallIcon(R.drawable.icon);
         } else {
             mBuilder.setSmallIcon(R.drawable.lexicon);
         }
-        Intent resultIntent = new Intent(this, MainActivity.class);
+        Intent resultIntent = new Intent(this,LexiconItem.class);
+        NotificationLexicon notificationLexicon = new NotificationLexicon(lexicon, index, translateFrom);
+        resultIntent.putExtra("message",notificationLexicon);
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         stackBuilder.addParentStack(MainActivity.class);
         stackBuilder.addNextIntent(resultIntent);
@@ -129,17 +143,18 @@ public class AppService extends Service {
             @Override
             public void onTick(long l) {
                 time -= tick;
-                //Log.d("Time_tick","" + time);
+                Log.d("Time_tick","" + time);
             }
 
             @Override
             public void onFinish() {
-                time = 10800000 + random.nextInt(10800001);
+                Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+                v.vibrate(500);
+                //time = 10800000 + random.nextInt(10800001);
+                time = 10000;
                 Log.d("Time","" + time);
                 setNotificationBuilder();
                 setNotificationTime();
-                Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-                v.vibrate(500);
 //                stopSelf();
             }
         }.start();
@@ -149,5 +164,9 @@ public class AppService extends Service {
         Intent intent = new Intent ("TIME"); //put the same message as in the filter you used in the activity when registering the receiver
         intent.putExtra("time", time);
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
+
+    public void restartService() {
+        startService(notificationIntent);
     }
 }
